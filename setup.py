@@ -549,7 +549,7 @@ for e in ext_list:
     e.extra_f77_compile_args = []
     e.extra_f90_compile_args = []
 
-ext_list += prepare.fortran_extensionlists()
+#ext_list += prepare.fortran_extensionlists()
 
 # distutils part
 
