@@ -580,10 +580,12 @@ class Assimulo_prepare(object):
         glimda_list = ['glimda_complete.f','glimda_complete.pyf']
         src=['assimulo'+os.sep+'thirdparty'+os.sep+'glimda'+os.sep+code for code in glimda_list]
         if self.with_BLAS and self.with_LAPACK:
-            extraargs_glimda={'extra_link_args':extra_link_flags[:], 'extra_compile_args':extra_compile_flags[:], 'library_dirs':[self.BLASdir, self.LAPACKdir], 'libraries':['lapack', self.BLASname]}
-            extraargs_glimda["extra_f77_compile_args"] = extra_compile_flags[:]
+            extraargs_glimda=extraargs.copy()
+            extraargs_glimda['library_dirs']=[self.BLASdir, self.LAPACKdir]
+            extraargs_glimda['libraries']=['lapack', self.BLASname]
+            extraargs_glimda["extra_f77_compile_args"] += ['-lblas','-llapack']
+            print("extraargs_glimda=", extraargs_glimda)
             config.add_extension('assimulo.lib.glimda', sources= src,include_dirs=[np.get_include()],**extraargs_glimda) 
-            extra_link_flags=extra_link_flags[:-2]  # remove LAPACK flags after GLIMDA
         elif self.with_MKL: #assuming windows and Intel fortran compiler
             config.add_extension('assimulo.lib.glimda', sources= src,include_dirs=[np.get_include()], library_dirs=[self.MKLdir], libraries=[self.MKLname])
         else:
