@@ -46,6 +46,7 @@ parser.add_argument("--extra-c-flags", help='Extra C-flags (a list enclosed in "
 parser.add_argument("--with_openmp", type='bool', help="set to true if present",default=False)
 parser.add_argument("--is_static", type='bool', help="set to true if present",default=False)
 parser.add_argument("--sundials-with-superlu", type='bool', help="(DEPRECATED) set to true if Sundials has been compiled with SuperLU",default=None)
+parser.add_argument("--superlu-variant", type=str, help="SuperLU_MT variant (OPENMP/PTHREAD)", default="OPENMP")
 parser.add_argument("--debug", type='bool', help="set to true if present",default=False)
 parser.add_argument("--force-32bit", type='bool', help="set to true if present",default=False)
 parser.add_argument("--no-msvcr", type='bool', help="set to true if present",default=False)
@@ -327,12 +328,17 @@ class Assimulo_prepare(object):
         self.with_SLU = True
         sundials_msg='SUNDIALS will not be compiled with support for SuperLU'
         
-        if self.SLUdir != "":    
-            self.SLUincdir = os.path.join(self.SLUdir,'SRC')
-            if not os.path.exists(os.path.join(self.SLUincdir,'supermatrix.h')):
-                self.SLUincdir = os.path.join(self.SLUdir,'include')
-            self.SLUlibdir = os.path.join(self.SLUdir,'lib')
-            if not os.path.exists(os.path.join(self.SLUincdir,'supermatrix.h')):
+        if self.SLUdir != "":
+            incdirs = [os.path.join(self.SLUdir, 'SRC'),
+                      os.path.join(self.SLUdir, 'include', 'superlu_mt'),
+                      os.path.join(self.SLUdir, 'include')]
+            self.SLUincdir = None
+            for incdir in incdirs:
+                if os.path.exists(os.path.join(incdir, 'supermatrix.h')):
+                    self.SLUincdir = incdir
+                    break
+            self.SLUlibdir = os.path.join(self.SLUdir, 'lib')
+            if self.SLUincdir is None:
                 self.with_SLU = False
                 L.warning("Could not find SuperLU, disabling support. View more information using --log=DEBUG")
                 L.debug("Could not find SuperLU at the given path {}.".format(self.SLUdir))
@@ -383,14 +389,14 @@ class Assimulo_prepare(object):
             sundials_with_superlu = False
             sundials_with_msvc = False
             try:
-                if os.path.exists(os.path.join(os.path.join(self.incdirs,'sundials'), 'sundials_config.h')):
-                    with open(os.path.join(os.path.join(self.incdirs,'sundials'), 'sundials_config.h')) as f:
+                if os.path.exists(os.path.join(self.incdirs, 'sundials', 'sundials_config.h')):
+                    with open(os.path.join(self.incdirs, 'sundials', 'sundials_config.h')) as f:
                         for line in f:
                             if "SUNDIALS_PACKAGE_VERSION" in line or "SUNDIALS_VERSION" in line:
                                 sundials_version = tuple([int(f) for f in line.split()[-1][1:-1].split('-dev')[0].split(".")])
                                 L.debug('SUNDIALS %d.%d found.'%(sundials_version[0], sundials_version[1]))
                                 break
-                    with open(os.path.join(os.path.join(self.incdirs,'sundials'), 'sundials_config.h')) as f:
+                    with open(os.path.join(self.incdirs, 'sundials', 'sundials_config.h')) as f:
                         for line in f:
                             if "SUNDIALS_INT32_T" in line and line.startswith("#define"):
                                 sundials_vector_type_size = "32"
@@ -403,9 +409,9 @@ class Assimulo_prepare(object):
                                     L.warning("It is recommended to set the SUNDIALS_INDEX_TYPE to an 32bit integer when using SUNDIALS together with SuperLU (or make sure that SuperLU is configured to use the same int size).")
                                     L.warning("SuperLU may not function properly.")
                                 break
-                    with open(os.path.join(os.path.join(self.incdirs,'sundials'), 'sundials_config.h')) as f:
+                    with open(os.path.join(self.incdirs, 'sundials', 'sundials_config.h')) as f:
                         for line in f:
-                            if "SUNDIALS_SUPERLUMT" in line and line.startswith("#define"): #Sundials compiled with support for SuperLU
+                            if ("SUNDIALS_SUPERLUMT" in line or "SUNDIALS_SUNLINSOL_SUPERLUMT" in line) and line.startswith("#define"): #Sundials compiled with support for SuperLU
                                 sundials_with_superlu = True
                                 L.debug('SUNDIALS found to be compiled with support for SuperLU.')
                                 break
@@ -525,7 +531,10 @@ class Assimulo_prepare(object):
                 ext_list[-1].extra_compile_args += ["-D__OPENMP"]
             else:
                 ext_list[-1].library_dirs = [os.path.join(self.SLUincdir, "..", "lib"), self.BLASdir]
-                ext_list[-1].libraries = ['superlu_mt_OPENMP', 'blas_OPENMP', 'blas', 'm', 'gomp']
+                if "OPENMP" in self.superlu_variant:
+                    ext_list[-1].libraries = ['superlu_mt_OPENMP', 'blas_OPENMP', 'blas', 'm', 'gomp']
+                else:
+                    ext_list[-1].libraries = ['superlu_mt_PTHREAD', 'blas', 'm']
         else:
             L.warning("Radau5 C solver will not be supported due to SuperLU not being supplied.")
         
