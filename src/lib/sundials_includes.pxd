@@ -438,9 +438,15 @@ IF SUNDIALS_VERSION >= (3,0,0):
     
     IF SUNDIALS_WITH_SUPERLU:
         cdef extern from "sunlinsol/sunlinsol_superlumt.h":
-            SUNLinearSolver SUNSuperLUMT(N_Vector y, SUNMatrix A, int num_threads)
+            IF SUNDIALS_VERSION >= (6,0,0):
+                SUNLinearSolver SUNLinSol_SuperLUMT(N_Vector y, SUNMatrix A, int num_threads, SUNContext ctx)
+            ELSE:
+                SUNLinearSolver SUNSuperLUMT(N_Vector y, SUNMatrix A, int num_threads)
     ELSE:
-        cdef inline SUNLinearSolver SUNSuperLUMT(N_Vector y, SUNMatrix A, int num_threads): return NULL
+        IF SUNDIALS_VERSION >= (6,0,0):
+            cdef inline SUNLinearSolver SUNLinSol_SuperLUMT(N_Vector y, SUNMatrix A, int num_threads, SUNContext ctx): return NULL
+        ELSE:
+            cdef inline SUNLinearSolver SUNSuperLUMT(N_Vector y, SUNMatrix A, int num_threads): return NULL
     
     cdef inline int cv_spils_jtsetup_dummy(realtype t, N_Vector y, N_Vector fy, void *user_data): return 0    
     cdef inline tuple version(): return (3,0,0)
