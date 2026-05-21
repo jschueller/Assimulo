@@ -34,6 +34,13 @@ except ImportError:
 import Cython
 from Cython.Build import cythonize
 
+# Add the tools directory for the IF-preprocessor
+_script_dir = os.path.dirname(os.path.abspath(__file__))
+_tools_dir = os.path.join(_script_dir, "tools")
+if _tools_dir not in sys.path:
+    sys.path.insert(0, _tools_dir)
+from cython_preprocess import preprocess_directory
+
 def str2bool(v):
     return v.lower() in ("yes", "true", "t", "1")
 
@@ -476,14 +483,9 @@ class Assimulo_prepare(object):
 
         # SUNDIALS
         if self.with_SUNDIALS:
-            compile_time_env = {'SUNDIALS_VERSION': self.SUNDIALS_version,
-                                'SUNDIALS_WITH_SUPERLU': self.sundials_with_superlu and self.with_SLU,
-                                'SUNDIALS_VECTOR_SIZE': self.SUNDIALS_vector_size,
-                                'SUNDIALS_CVODE_RTOL_VEC': self.sundials_cvode_with_rtol_vec}
             #CVode and IDA
             ext_list += cythonize(["assimulo" + os.path.sep + "solvers" + os.path.sep + "sundials.pyx"], 
                                  include_path=[".","assimulo","assimulo" + os.sep + "lib"],
-                                 compile_time_env=compile_time_env,
                                  force=True,
                                  compiler_directives={'language_level' : "3str"})
             ext_list[-1].include_dirs = [np.get_include(), "assimulo","assimulo"+os.sep+"lib", self.incdirs]
@@ -506,7 +508,6 @@ class Assimulo_prepare(object):
             #Kinsol
             ext_list += cythonize(["assimulo"+os.path.sep+"solvers"+os.path.sep+"kinsol.pyx"], 
                         include_path=[".","assimulo","assimulo"+os.sep+"lib"],
-                        compile_time_env=compile_time_env,
                         force=True,
                         compiler_directives={'language_level' : "3str"})
             ext_list[-1].include_dirs = [np.get_include(), "assimulo","assimulo"+os.sep+"lib", self.incdirs]
@@ -646,6 +647,17 @@ if not os.path.isdir("assimulo"):
     change_dir = True
 else:
     change_dir = False
+
+# Preprocess Cython IF/ELIF/ELSE directives before cythonize
+if prepare.with_SUNDIALS:
+    preprocess_env = {
+        'SUNDIALS_VERSION': prepare.SUNDIALS_version,
+        'SUNDIALS_WITH_SUPERLU': prepare.sundials_with_superlu and prepare.with_SLU,
+        'SUNDIALS_VECTOR_SIZE': prepare.SUNDIALS_vector_size,
+        'SUNDIALS_CVODE_RTOL_VEC': prepare.sundials_cvode_with_rtol_vec,
+    }
+    preprocess_directory("assimulo", preprocess_env)
+    logging.debug("Cython IF directives preprocessed with env: %s", preprocess_env)
 
 ext_list = prepare.cython_extensionlists()
 if have_nd:
