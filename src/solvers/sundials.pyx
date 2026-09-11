@@ -2444,6 +2444,11 @@ cdef class CVode(Explicit_ODE):
             if self.sun_ctx == NULL:
                 SUNDIALS.SUNContext_Create(comm, &self.sun_ctx)
             cdef SUNDIALS.SUNContext ctx = self.sun_ctx
+        IF SUNDIALS_VERSION < (7,6,0):
+            cdef int sparse_type = CSC_MAT
+        ELSE:
+            #CSC_MAT deprecated in 7.6, removed in 8.0
+            cdef int sparse_type = SUNDIALS.SUN_CSC_MAT
 
         #Choose a linear solver if and only if NEWTON is choosen
         if self.options["linear_solver"] == 'DENSE' and self.options["iter"] == "Newton":
@@ -2583,10 +2588,10 @@ cdef class CVode(Explicit_ODE):
                     SUNDIALS.SUNLinSolFree(self.sun_linearsolver)
                     self.sun_linearsolver = NULL
                 IF SUNDIALS_VERSION >= (6,0,0):
-                    self.sun_matrix = SUNDIALS.SUNSparseMatrix(self.pData.dim, self.pData.dim, self.problem_info["jac_fcn_nnz"], CSC_MAT, ctx)
+                    self.sun_matrix = SUNDIALS.SUNSparseMatrix(self.pData.dim, self.pData.dim, self.problem_info["jac_fcn_nnz"], sparse_type, ctx)
                     self.sun_linearsolver = SUNDIALS.SUNLinSol_SuperLUMT(self.yTemp, self.sun_matrix, self.options["num_threads"], ctx)
                 ELSE:
-                    self.sun_matrix = SUNDIALS.SUNSparseMatrix(self.pData.dim, self.pData.dim, self.problem_info["jac_fcn_nnz"], CSC_MAT)
+                    self.sun_matrix = SUNDIALS.SUNSparseMatrix(self.pData.dim, self.pData.dim, self.problem_info["jac_fcn_nnz"], sparse_type)
                     self.sun_linearsolver = SUNDIALS.SUNSuperLUMT(self.yTemp, self.sun_matrix, self.options["num_threads"])
                 IF SUNDIALS_VERSION >= (4,0,0):
                     flag = SUNDIALS.CVodeSetLinearSolver(self.cvode_mem, self.sun_linearsolver, self.sun_matrix)

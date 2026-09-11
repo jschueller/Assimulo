@@ -202,6 +202,10 @@ IF SUNDIALS_VERSION >= (3,0,0):
             SUNMatrix SUNSparseMatrix(sunindextype M, sunindextype N, sunindextype NNZ, int sparsetype, SUNContext ctx) noexcept
         ELSE:
             SUNMatrix SUNSparseMatrix(sunindextype M, sunindextype N, sunindextype NNZ, int sparsetype) noexcept
+        IF SUNDIALS_VERSION >= (7,6,0):
+            #CSC_MAT/CSR_MAT are deprecated since 7.6 and removed in 8.0
+            cdef int SUN_CSC_MAT
+            cdef int SUN_CSR_MAT
     cdef extern from "sunlinsol/sunlinsol_dense.h":
         IF SUNDIALS_VERSION >= (4,0,0):
             IF SUNDIALS_VERSION >= (6,0,0):
@@ -763,7 +767,6 @@ cdef extern from "kinsol/kinsol.h":
 
     # optional output routines.
     # Documentation see kinsol.h line 670-735
-    int KINGetWorkSpace(void *kinmem, long int *lenrw, long int *leniw)
     int KINGetNumNonlinSolvIters(void *kinmem, long int *nniters)
     int KINGetNumFuncEvals(void *kinmem, long int *nfevals)
     int KINGetNumBetaCondFails(void *kinmem, long int *nbcfails) 
@@ -848,7 +851,6 @@ IF SUNDIALS_VERSION >= (6,0,0):
 ELSE:
     cdef extern from "kinsol/kinsol_direct.h":
         # optional output fcts for linear direct solver
-        int KINDlsGetWorkSpace(void *kinmem, long int *lenrwB, long int *leniwB)
         IF SUNDIALS_VERSION >= (4,0,0):
             int KINGetLastLinFlag(void *kinmem, long int *flag)
             int KINGetNumJacEvals(void *kinmem, long int *njevalsB)
